@@ -1,7 +1,7 @@
 provider "aws" {
   region     = "eu-central-1"
-  access_key = "AKIA2UC3FY5SCZBDK56S"
-  secret_key = "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"
+  access_key = "XXXXXXXXXXXXXXXXXXX"
+  secret_key = "XXXXXXXXXXXXXXXXXXXX"
 }
 
 resource "aws_security_group" "allow_tls" {
