@@ -1,0 +1,277 @@
+Terraform v1.7.4
+-----------------
+
+Infrastructure Orchestration
+----------------------------
+
+	- Infrastructure Orchestration is primarily used to create and manage infrastructure environments
+	- Example:
+
+		- Create 3 servers with 4GB RAM, 2 vCPUs. Each server should have firewall rule to allow SSH connection from Office IPs.
+
+Authentication: 
+
+	- Is the process of verifying who a user is
+	- It could be the username and password or token (access &secrete token)
+
+Authorization:
+	
+	- Is the process of verifying what they have access to
+	- It could be ready only or write only or no access to a particular user on the services
+
+Terraform needs access credentials with relevant permissions to create and manage environments 
+
+Depending on the provider, the type of access credentials would change.
+
+	- Example
+
+		AWS		-	Access Keys and Secret Keys
+		GitHub	-	Tokens
+
+Available Regions:
+
+	- Cloud providers offers multiple regions in which we can create our resource
+	- You need to decide the region in which Terraform would create the resource
+	- Different regions have their own seperate AMI-IDs
+
+	- Example Terraform script:
+
+		provider "aws" {
+		  region     = "eu-central-1"
+		  access_key = "XXXXXXXXX"
+		  secret_key = "XXXXXXXXX"
+		}
+
+		resource "aws_instance" "first-ec2" {
+		    ami = "ami-0a23a9827c6dab833"
+		    instance_type = "t2.micro"
+		    tags = {
+		    Name = "second-tf-instance"
+		    }
+		}
+
+		provider azurerm {}
+
+Provider:
+
+	- A provider is a plugin that lets Terraform manage an external API
+	- Example:
+
+		provider "aws" {}
+		provider azurerm {}
+
+
+Provider Plugins:
+	
+	- When we run "terraform init", plugins required for the provider are automatically downloaded and saved locally to a .terraform directory.
+	- Whenever we define a new provider in the terraform script, we have to run "terraform init" command
+	- Here is the commands in order to run terraform script:
+
+		$ terraform init
+		$ terraform plan
+		$ terraform apply 
+
+Resource:
+
+	- Resource block describes one or more infrastructure objects
+	- Example:
+
+		resource "aws_instance" "first-ec2" {
+		    ami = "ami-0a23a9827c6dab833"
+		    instance_type = "t2.micro"
+		    }
+
+		● resource aws_instance
+		● resource aws_alb
+		● resource iam_user
+
+Resource Blocks:
+
+	- A resource block declares a resource of a given type ("aws_instance") with a given local name ("first-ec2").
+	- Resource type and Name together serve as an identifier for a given resource and so must be unique.
+	- Example:
+
+		resource "aws_instance" "first-ec2" {
+	    ami = "ami-0a23a9827c6dab833"
+	    instance_type = "t2.micro"
+	    }
+
+	    resource "aws_instance" "second-ec2" {
+	    ami = "ami-123"
+	    instance_type = "t2.micro"
+	    }
+
+The core concepts, standard syntax remains similar across all providers.
+If you learn the basics, you should be able to work with all providers easily.
+
+Provider Tiers:
+
+	- Provider Maintainers:
+
+		- There are 3 primary type of provider tiers in Terraform
+
+			- Official : Owned and Maintained by HashiCorp
+			- Partner :	Owned and Maintained by Technology Company that maintains direct partnership with HashiCorp.
+			- Community : Owned and Maintained by Individual Contributors.
+
+	- Provider Namespace:
+
+		- Namespaces are used to help users identify the organization or publisher responsible for the integration
+
+		- Official : hashicorp Ex. https://registry.terraform.io/providers/hashicorp/aws/latest
+		- Partner : Third-party organization e.g. https://registry.terraform.io/providers/aliyun/alicloud/latest
+		- Community : Maintainer’s individual or organization account, e.g. https://registry.terraform.io/providers/tsuru/acl/latest
+
+	- Terraform requires explicit source information for any providers that are not HashiCorp-maintained using a new syntax in the required_providers nested block inside the terraform configuration block
+
+	- Example: HashiCorp Maintained
+
+		provider "aws" {
+		  region     = "eu-central-1"
+		  access_key = "XXXXXXXXX"
+		  secret_key = "XXXXXXXXX"
+		}
+
+			- By defult we use "provider" and not mandatory to use "required_providers" for HashiCorp Maintained providers
+
+	- Example: Non-HashiCorp Maintained
+
+		terraform {
+		required_providers {
+		digitalocean ={
+		source = "digitalocean/digitalocean"
+		}
+		}
+		}
+		- It is not necessary to use "required_providers" unless we want to customize things based on specific use case
+		- It is essential to use "required_providers" for various community providers or various platform specific providers 
+
+Terraform Destroy:
+
+	- "terraform destroy" allows us to destroy all the resource that are created within the folder.
+	- terraform destroy with -target flag allows us to destroy specific resource
+	- Example:
+
+		$ terraform destroy - target aws_instance.first-ec2
+
+State File:
+
+	- Terraform stores the state of the infrastructure that is being created from the TF files
+	- This state allows terraform to map real world resource to your existing configuration
+
+Terraform States:
+
+	- Terraform's primary function is to create, modify, and destroy infrastructure resources to match the desired state described in a Terraform configuration
+	- Current state is the actual state of a resource that is currently deployed.
+	- Terraform tries to ensure that the deployed infrastructure is based on the desired state.
+	- If there is a difference between the desired & current states, terraform plan presents a description of the changes necessary to achieve the desired state.
+	- Terroform would not care about the resource values that are not defined it with the desired state. Only the values defined in the resources will be checked with the desired state
+
+Provider Versioning:
+
+	- Provider plugins are released separately from Terraform itself.
+	- They have different set of version numbers.
+	- During terraform init, if version argument is not specified, the most recent provider will be downloaded during initialization.
+	- For production use, you should constrain the acceptable provider versions via configuration, to ensure that new versions with breaking changes will not be automatically installed.
+	- There are multiple ways for specifying the version of a provider.
+	- Example:
+
+		>=1.0 : Greater than equal to the version
+		<=1.0 :	Less than equal to the version
+		~>2.0 : Any version in the 2.X range.
+		>=2.10,<=2.30 : Any version between 2.10 and 2.30
+
+	- Dependency Lock File:
+
+		- Terraform dependency lock file allows us to lock to a specific version of the provider.
+		- If a particular provider already has a selection recorded in the lock file, Terraform will always re-select that version for installation, even if a newer version has become available.
+		- You can override that behavior by adding the -upgrade option when you run terraform init
+
+			$ terraform init -upgrade
+
+Terraform Refresh:
+
+	- Terraform can create an infrastructure based on configuration you specified.
+	- It can happen that the infrastructure gets modified manually.
+	- The terraform refresh command will check the latest state of your infrastructure and update the state file accordingly.
+	- You shouldn't typically need to use this command, because Terraform automatically performs the same refreshing actions as a part of creating a plan in both the terraform plan and terraform apply commands.
+	- The terraform refresh command is deprecated in newer version of terraform.
+	- The -refresh-only option for terraform plan and terraform apply was introduced in Terraform v0.15.4.
+
+
+======================================================================================================================================================================================================================
+
+Creating Firewall Rules (security groups) using Terraform: (https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group)
+
+	- Resources that are used:
+
+		- aws_security_group
+		- aws_vpc_security_group_ingress_rule
+		- aws_vpc_security_group_egress_rule
+
+	- ingress_rule = inbound rule
+	- egress_rule = outbound rule
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
