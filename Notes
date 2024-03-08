@@ -34,7 +34,9 @@ Available Regions:
 	- You need to decide the region in which Terraform would create the resource
 	- Different regions have their own seperate AMI-IDs
 
-	- Example Terraform script:
+	- Example Terraform scripts:
+
+		# This is how we pass credentials directly in the provider section which is not recommended 
 
 		provider "aws" {
 		  region     = "eu-central-1"
@@ -51,6 +53,15 @@ Available Regions:
 		}
 
 		provider azurerm {}
+
+		# This is how we pass credentials via the file locations in the provider section which is not recommended 
+
+		provider "aws" {
+		  region     = "eu-central-1"
+		  shared_config_files = ["/Users/naveen.noor/Desktop/my-github-repos/Terraform/Terraform-Core-Concepts/.aws/conf"]
+		  shared_credentials_files = ["/Users/naveen.noor/Desktop/my-github-repos/Terraform/Terraform-Core-Concepts/.aws/creds"]
+		  profile = "default"
+		}
 
 Provider:
 
@@ -211,7 +222,28 @@ Creating Firewall Rules (security groups) using Terraform: (https://registry.ter
 
 	- ingress_rule = inbound rule
 	- egress_rule = outbound rule
+	- ip_protocol = "-1" # semantically equivalent to all ports
 
+Creating Elastic IPs with Terraform (https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eip)
+
+	- What is an Elastic IP?
+
+		- An Elastic IP is a static IPV4 address in AWS
+		- You can create it and associate it with AWS EC2 instance 
+
+	- Resources that are used:
+
+		- aws_eip
+
+Attributes:
+
+	- Attributes are the fields in a resource that holds the values that end up in state
+	- Each resource has its associated set of attributes
+	- Each resource type has a predefined set of attributes determined by the provider
+	- Example:
+
+		- id : ID of the instance 
+		- public_ip : Contains the public IP address
 
 
 
