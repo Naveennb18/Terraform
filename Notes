@@ -240,26 +240,484 @@ Attributes:
 	- Attributes are the fields in a resource that holds the values that end up in state
 	- Each resource has its associated set of attributes
 	- Each resource type has a predefined set of attributes determined by the provider
-	- Example:
+	- Example: For EC2
 
 		- id : ID of the instance 
 		- public_ip : Contains the public IP address
 
+	- Terraform allows us to reference the attribute of one resource to be used in a different resource.
+	- Example:
+
+		- create an elastic ip and a security group
+		- whitelist the generated elastic ip with the created security group 
+
+		resource "aws_eip" "lb" {
+			  domain   = "vpc"
+			}
+
+			resource "aws_security_group" "example" {
+			  name        = "attribute-sg"
+			}
+
+			resource "aws_vpc_security_group_ingress_rule" "example" {
+			  security_group_id = aws_security_group.example.id
+			  cidr_ipv4   = "${aws_eip.lb.public_ip}/32"
+			  from_port   = 443
+			  ip_protocol = "tcp"
+			  to_port     = 443
+			}
+
+			- The "$" indicates that the terraform will replace the expression inside the curly braces with the caliculated value
+
+Output values:
+
+	- Output values make information about your infrastructure available on the command line, and can expose information for other Terraform configurations to use.
+	- Example:
+
+		- Create a Elastic IP (Public IP) resource in AWS and output the value of the EIP.
+
+	- Output values defined in Project A can be referenced from code in Project B as well.
+
+Terraform Variables:
+
+	- Terraform input variables are used to pass certain values from outside of configuration 
+	- Input variables let you customize aspects of Terraform modules without altering the module's own source code. 
+	- This functionality allows you to share modules across different Terraform configurations, making your module composable and reusable.
+	- We can have a central source from which we can import the values from.
+	- Example:
 
 
+		terraform-variables.tf
+
+			resource "aws_security_group" "allow_tls" {
+			  name        = "terraform-firewall"
+			  description = "Managed from Terraform"
+			}
+
+			resource "aws_vpc_security_group_ingress_rule" "app_port" {
+			  security_group_id = aws_security_group.allow_tls.id
+			  cidr_ipv4         = var.vpn_ip
+			  from_port         = var.app_port
+			  ip_protocol       = "tcp"
+			  to_port           = var.app_port
+			}
+
+			resource "aws_vpc_security_group_ingress_rule" "ssh_port" {
+			  security_group_id = aws_security_group.allow_tls.id
+			  cidr_ipv4         = var.vpn_ip
+			  from_port         = var.ssh_port
+			  ip_protocol       = "tcp"
+			  to_port           = var.ssh_port
+			}
+
+			resource "aws_vpc_security_group_ingress_rule" "ftp_port" {
+			  security_group_id = aws_security_group.allow_tls.id
+			  cidr_ipv4         = var.vpn_ip
+			  from_port         = var.ftp_port
+			  ip_protocol       = "tcp"
+			  to_port           = var.ftp_port
+			}
 
 
+		variables.tf
+
+			variable "vpn_ip" {
+			    default = "200.20.30.50/32"
+			    description = "This is a VPN Server Created in AWS"
+			}
+
+			variable "app_port" {
+			    default = "8080"
+			}
+
+			variable "ssh_port" {
+			    default = "22"
+			}
+
+			variable "ftp_port" {
+			    default = "21"
+			}
+
+Variable Definition File (TFVars):
+
+	- Managing variables in the production environment is one of the very important aspects to keep code clean and reusable
+	- Hashicorp recommends creating a seperate file with a name of *.tfvars to define all variable values in a project
+	- The recommended folder structure look like below:
+
+		1. Main Terraform configuration file
+
+			- Example: (main.tf)
+
+				resource "aws_instance" "myec2" {
+				  ami           = var.ami
+				  instance_type = "t2.micro"
+				}
+
+		2. variable.tf file that defines all the variables
+
+			- Example (variables.tf):
+
+				variable "ami" {}
 
 
+		3. terrarform.tfvars file that defines value to all the variables (*.tfvars in this case)
+
+			- Example (terraform.tfvars):
+
+				ami = "ami-0e670eb768a5fc3d4"
+
+		- Commands to execute the above use case:
+
+			$ terraform plan
+			$ terraform apply
+			$ terraform plan -var-file="terraform.tfvars"
+
+	- Configuration for different environment
+
+		- Organizations can have wide set of environments: Dev, Stage, Prod
+		- In that case, the variable declaration is as follows:
+
+			1. Main Terraform configuration file
+
+			- Example: (main.tf)
+
+				resource "aws_instance" "myec2" {
+				  ami           = var.ami
+				  instance_type = "t2.micro"
+				}
+
+			2. variable.tf file that defines all the variables
+
+				- Example (variables.tf):
+
+					variable "ami" {}
 
 
+			3. terrarform.tfvars file that defines value to all the variables (*.tfvars in this case)
+
+				- Example (prod.tfvars):
+
+					ami = "ami-0e670eb768a5fc3d4"
+
+				- Example (dev.tfvars):
+
+					ami = "ami-0daf5eb78a5fdfg45"
+
+			- Commands to execute the above use case:
+
+				$ terraform plan
+				$ terraform apply
+				$ terraform plan -var-file="prod.tfvars"
+
+	- Once the "terraform.tfvars" file is defined, terraform will ignores the defualt values that are defined in the variable file
+	- The variable preference would be from "terraform.tfvars" file
+	- If the value is not assigned in the "terraform.tfvars" file, the terraform will check the default value that is defined in the variable.tf file
+	- If you have multiple "tfvars" files (Ex. prod.tfvars, dev.tfvars, etc.,) you have to explicitly give the value to the variable (if the default is not defined) in the command line or in the terraform plan command as : 
+
+		$ terraform plan -var-file="prod.tfvars"
+
+	- If you have not defined a value to the variable, Terraform will ask you to input the value in CLI promptwhen you run terraform plan/apply operations
 
 
+Declaring the variable Values:
+
+	- Variable Defaults
+	- Variable definion file (*.tfvars)
+	- Environment variables
+	- Setting variable in the command line 
+
+		- To specify individual variables in the command line, use -var option when running the terraform plan and terraform apply commands:
+
+			- $ terraform plan -var="instance_type=m4.large"
+
+	- Setting variable through Environment Variables
+
+		- Terraform searches the environment of its own process for environment variables named TF_VARS_ follwed by the name of the declared variable
+
+			- $ export TF_VARS_instance_type=m5.large
+
+Variable Definition Precedence:
+
+	- Terraform loads variables in the following order, with later sources taking precedence over earlier ones:
+
+		- Environment variables
+		- The Terraform.tfvars file, if present
+		- The Terraform.tfvars.json file, if present 
+		- Any *.auto.tfvars or *.auto.tfvars.json files, proceeded in lexical order of their file names
+		- Any -var and -var-file option on the command line 
+
+	- Example:
+
+		1. ENV variable of TF_VARS_instant_type="t2.micro"
+		2. value in terraform.tfvars="t2.large"
+		3. terraform plan -var="instance_type=m5.large"
+
+			Final Result	:	"m5.large"
 
 
+Data Types of Variable:
+
+	- The "type" argument in a variable block allows you to restrict the type value that will be accepted as the value for the variable 
+	- Example:
+
+		variable "image_id" {
+		type = string
+		}
+
+	- If no "type" constraint is set, then a value of any type is accepted 
+
+	- Fetch the data from Maps and List in variable
+
+		- Example: (Maps)
+
+			resource "aws_instance" "my_ec2" {
+				ami = "some_ami_id"
+				instance_type = var.types["us-east-1"]
+			}
+
+			var "list" {
+			type = list
+			default = ["m5.large", "m5.xlarge", "t2.micro"]
+			}
+
+			var "type" {
+				type = map
+				default = {
+					us-east-1 = "t2.micro",
+					us-west-2 = "t2.medium",
+					ap-south-1 = "t2.small"
+				}
+			}
+
+			- In the above example, the value "t2.micro" will be picked up for the instance_type
+
+		- Example: (List)
+
+			resource "aws_instance" "my_ec2" {
+				ami = "some_ami_id"
+				instance_type = var.list(1) # The position of the list
+			}
+
+			- In the above example, the value "m5.xlarge" will be picked up for the instance_type 
 
 
+Count Parameter:
 
+	- With the count parameter, we can simply specify the count value and the resource can be scaled accordingly
+
+	- Example:
+
+		resource "aws_instance" "my_ec2" {
+				ami = "some_ami_id"
+				instance_type = "t2.micro"
+				count = 5
+			}
+
+			- From the above example, 5 ec2 intances will be created 
+
+	- In resource blocks where count is set, an additional count object is available in expressions, so you can modify the configuration of each instance.
+	- This object has one attribute:
+
+		- count.index — The distinct index number (starting with 0) corresponding to this instance.
+
+	- With the below code, terraform will create 5 IAM users. But the problem is that all will have the same name.
+
+		resource "aws_iam_user" "lb" {
+		name = "loadbalancer"
+		count = 5
+		path = "/system/"
+		}
+
+	- count.index allows us to fetch the index of each iteration in the loop.
+
+		resource "aws_iam_user" "lb" {
+		name = "loadbalancer.${count.index}"
+		count = 5
+		path = "/system/"
+		}
+
+		- From the above example, the 5 iam resources will be created as loadbalancer.0, loadbalancer.1,...loadbalancer.4
+
+	- Having a username like loadbalancer0, loadbalancer1 might not always be suitable.
+	- Better names like dev-loadbalancer, stage-loadbalancer, prod-loadbalancer is better.
+	- count.index can help in such scenario as well.
+	- Example:
+
+		variable "elb_names" {
+			type = list
+			default = ["dev-lb", "stg-lb", "prod-lb"]
+		} 
+
+		resource "aws_iam_user" "lb" {
+		name = var.elb_names[count.index]
+		count = 3
+		path = "/system/"
+		}
+
+		- From the above example, the 3 iam resources will be created as dev-lb, stg-lb and rod-lb
+
+		- Conditional Expression:
+
+			- A conditional expression uses the value of a bool expression to select one of two values.
+			- Syntax:
+
+				condition ? true_val : false_val
+
+			- If condition is true then the result is true_val. If condition is false then the result is false_val.
+
+			- Example:
+
+				var "istest" {
+					default = true
+				}
+
+				resource "aws_instance" "dev" {
+						ami = "some_ami_id"
+						instance_type = "t2.micro"
+						count = var.istest == true ? 3 : 0
+					}
+
+				resource "aws_instance" "prod" {
+						ami = "some_ami_id"
+						instance_type = "t2.small"
+						count = var.istest == false ? 1 : 0
+					}
+
+					- From the above example, the 3 dev resources with a t2.micro type instance will be created and 0 prod resources are created
+					- If the "istest" value is defined as false, then 1 prod resources with a t2.small type instance will be created and 0 dev resources are created
+
+
+Local Values:
+
+	- A local value assigns a name to an expression, allowing it to be used multiple times within a module without repeating it.
+	- Example:
+
+		locals {
+		  common_tags = {
+		    Owner = "DevOps Team"
+		    service = "backend"
+		  }
+		}
+		resource "aws_instance" "app-dev" {
+		   ami = "ami-082b5a644766e0e6f"
+		   instance_type = "t2.micro"
+		   tags = local.common_tags
+		}
+
+		resource "aws_instance" "db-dev" {
+		   ami = "ami-082b5a644766e0e6f"
+		   instance_type = "t2.small"
+		   tags = local.common_tags
+		}
+
+		resource "aws_ebs_volume" "db_ebs" {
+		  availability_zone = "us-west-2a"
+		  size              = 8
+		  tags = local.common_tags
+		}
+
+
+		- Local Values can be used for multiple different use-cases like having a conditional expression.
+		- Syntax:
+
+			locals {
+				name_prefix = "${var.name ! = "" ? var.name : var.default}"
+			}
+
+		- Local values can be helpful to avoid repeating the same values or expressions multiple times in a configuration.
+		- If overused they can also make a configuration hard to read by future maintainers by hiding the actual values used
+		- Use local values only in moderation, in situations where a single value or result is used in many places and that value is likely to be changed in future.
+
+Terraform Functions: (https://developer.hashicorp.com/terraform/language/functions)
+
+	- The Terraform language includes a number of built-in functions that you can use to transform and combine values.
+	- The general syntax for function calls is a function name followed by comma-separated arguments in parentheses:
+	- Syntax:
+
+		function (argument1, argument2)
+
+	- Example:
+
+		max(5, 12, 9)
+
+	- The Terraform language does not support user-defined functions, and so only the functions built in to the language are available for use as follows:
+
+		● Numeric
+		● String
+		● Collection
+		● Encoding
+		● Filesystem
+		● Date and Time
+		● Hash and Crypto
+		● IP Network
+		● Type Conversion
+
+	- Example: "lookup" function
+
+		locals {
+		  time = formatdate("DD MMM YYYY hh:mm ZZZ", timestamp())
+		}
+
+		variable "region" {
+		  default = "ap-south-1"
+		}
+
+		variable "tags" {
+		  type = list
+		  default = ["firstec2","secondec2"]
+		}
+
+		variable "ami" {
+		  type = map
+		  default = {
+		    "us-east-1" = "ami-0323c3dd2da7fb37d"
+		    "us-west-2" = "ami-0d6621c01e8c2de2c"
+		    "ap-south-1" = "ami-0470e33cd681b2476"
+		  }
+		}
+
+		resource "aws_key_pair" "loginkey" {
+		  key_name   = "login-key"
+		  public_key = file("${path.module}/id_rsa.pub")
+		}
+
+		resource "aws_instance" "app-dev" {
+		   ami = lookup(var.ami,var.region)
+		   instance_type = "t2.micro"
+		   key_name = aws_key_pair.loginkey.key_name
+		   count = 2
+
+		   tags = {
+		     Name = element(var.tags,count.index)
+		   }
+		}
+
+
+		output "timestamp" {
+		  value = local.time
+		}
+
+		- From the above example, the "lookup" function has been used. 
+		- "lookup" function: 
+
+			- It's a collection function
+			- lookup retrieves the value of a single element from a map, given its key. If the given key does not exist, the given default value is returned instead.
+			- Syntax:
+
+				lookup(map, key, default)
+
+
+		- And it will fetch the region value and created the instance using that AMI defined on that region
+		
+	- Example: "file" function
+
+		- "file" reads the contents of a file at the given path and returns them as a string. 
+
+			> file("${path.module}/hello.txt")
+			 
+			Hello World
+			
+	- Example:  
 
 
 
